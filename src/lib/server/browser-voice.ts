@@ -3,6 +3,7 @@ import { TrackSource } from "@livekit/protocol";
 import { createHash, randomBytes } from "node:crypto";
 import { callPrompt, type CallProposal, type CustomerCall } from "../customer-calls";
 import { callLedger } from "./call-ledger";
+import { validateServiceContext, serviceCategories } from "../service-context.ts";
 
 export const VOICE_AGENT_NAME = "kaamparchi-approval";
 export function voiceConfiguration() {
@@ -30,6 +31,12 @@ export async function startBrowserVoice(proposal: CallProposal, owner: string, r
   let call = reservation.call;
   const roomName = "approval-" + call.id;
   if (reservation.created) {
+    const service = validateServiceContext(proposal.service);
+    const greeting = service.language === "te-IN"
+      ? "నమస్కారం. నేను " + service.shopName + " తరఫున మాట్లాడుతున్న ఆటోమేటెడ్ సహాయకురాలు కామ్‌పర్చి. మీరు " + proposal.customerName + " గారేనా? మరమ్మతు గురించి ఇప్పుడు మాట్లాడవచ్చా?"
+      : service.language === "en-IN"
+      ? "Hello. I am KaamParchi, the automated assistant for " + service.shopName + ". Am I speaking with " + proposal.customerName + "? Is now a suitable time to discuss the repair or maintenance proposal?"
+      : "Namaste. Main " + service.shopName + " ki automated assistant KaamParchi hoon. Kya meri baat " + proposal.customerName + " se ho rahi hai? Kya abhi repair ya maintenance ke baare mein baat karna theek rahega?";
     const reportToken = randomBytes(32).toString("hex");
     call = ledger.patch(call.id, owner, {
       transport: "livekit-browser", roomName,
@@ -42,6 +49,7 @@ export async function startBrowserVoice(proposal: CallProposal, owner: string, r
         metadata: JSON.stringify({
           sessionId: call.id, reportToken, prompt: callPrompt({ ...proposal, phone: "" }),
           customerName: proposal.customerName,
+          language: service.language, topic: serviceCategories[service.category].topic, greeting,
         }),
       });
       call = ledger.patch(call.id, owner, { status: "queued", message: "Voice session ready. Join and allow microphone access to speak." });

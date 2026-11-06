@@ -20,7 +20,11 @@ from livekit.agents import (
 
 
 class PrismaSTT(stt.STT):
-    def __init__(self):
+    def __init__(self, language="hi-en", topic="Repair and maintenance approval"):
+        if language not in ("hi-en", "en-IN", "te-IN"):
+            raise ValueError("Unsupported conversation language.")
+        self.language = language
+        self.topic = topic
         super().__init__(capabilities=stt.STTCapabilities(streaming=False, interim_results=False))
         self.key = os.environ["GNANI_API_KEY"].strip()
 
@@ -45,9 +49,9 @@ class PrismaSTT(stt.STT):
         form = aiohttp.FormData()
         form.add_field("audio_file", output.getvalue(), filename="conversation.wav", content_type="audio/wav")
         form.add_field("model", self.model)
-        form.add_field("language_code", "hi-IN,en-IN")
+        form.add_field("language_code", "hi-IN,en-IN" if self.language == "hi-en" else self.language)
         form.add_field("format", "transcribe")
-        form.add_field("topic", "Customer phone repair approval. Preserve corrections, prices, negations and conditions about reset, data and part replacement.")
+        form.add_field("topic", self.topic + ". Preserve corrections, prices, negations and conditions about work and part replacement.")
         try:
             async with utils.http_context.http_session().post(
                 "https://api.vachana.ai/stt/v3",
@@ -62,7 +66,7 @@ class PrismaSTT(stt.STT):
                     raise APIStatusError("Transcription was incomplete. Please repeat a shorter answer.", status_code=422)
                 return stt.SpeechEvent(
                     type=stt.SpeechEventType.FINAL_TRANSCRIPT,
-                    alternatives=[stt.SpeechData(language="hi-IN", text=data["transcript"])],
+                    alternatives=[stt.SpeechData(language="hi-IN" if self.language == "hi-en" else self.language, text=data["transcript"])],
                 )
         except asyncio.TimeoutError as error:
             raise APITimeoutError("Gnani transcription timed out.") from error
@@ -71,7 +75,10 @@ class PrismaSTT(stt.STT):
 
 
 class TimbreTTS(tts.TTS):
-    def __init__(self):
+    def __init__(self, language="hi-en"):
+        if language not in ("hi-en", "en-IN", "te-IN"):
+            raise ValueError("Unsupported conversation language.")
+        self.language = language
         super().__init__(capabilities=tts.TTSCapabilities(streaming=False), sample_rate=24000, num_channels=1)
         self.key = os.environ["GNANI_API_KEY"].strip()
 
@@ -100,7 +107,7 @@ class TimbreStream(tts.ChunkedStream):
                     "text": text,
                     "model": "timbre-v3.0",
                     "voice": "Shivani",
-                    "language": "hi-en",
+                    "language": self._tts.language,
                     "speed": 1,
                     "audio_config": {
                         "sample_rate": 24000, "num_channels": 1, "sample_width": 2,

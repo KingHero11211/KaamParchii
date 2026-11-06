@@ -1,3 +1,5 @@
+import { validateServiceContext, type ServiceContext } from "./service-context.ts";
+
 export const statuses = ["Received", "In progress", "Ready", "Collected"] as const;
 export type JobStatus = (typeof statuses)[number];
 export type Intake = {
@@ -19,6 +21,7 @@ export type Job = {
   intake: Intake;
   status: JobStatus;
   technicianNotes: string;
+  service?: ServiceContext;
 };
 export const emptyIntake: Intake = {
   customerName: "", contact: "", device: "", issue: "", condition: "",
@@ -29,7 +32,7 @@ const storageKey = "repair-handover.jobs.v1";
 export function validateIntake(intake: Intake): string[] {
   const errors: string[] = [];
   if (!intake.customerName.trim()) errors.push("Enter the customer’s name.");
-  if (!intake.device.trim()) errors.push("Enter the device brand and model, or a description.");
+  if (!intake.device.trim()) errors.push("Describe the item, asset or work location.");
   if (!intake.issue.trim()) errors.push("Describe the customer-reported problem.");
   if (intake.spendingLimit.trim() && (!/^\d+(\.\d{1,2})?$/.test(intake.spendingLimit) || Number(intake.spendingLimit) <= 0)) {
     errors.push("Enter a spending limit greater than zero, with up to two decimal places, or leave it blank.");
@@ -40,6 +43,7 @@ export function validateIntake(intake: Intake): string[] {
 function isJob(value: unknown): value is Job {
   if (!value || typeof value !== "object") return false;
   const j = value as Job;
+  try { if (j.service !== undefined) validateServiceContext(j.service); } catch { return false; }
   return typeof j.id === "string" && typeof j.reference === "string" &&
     typeof j.createdAt === "string" && !Number.isNaN(Date.parse(j.createdAt)) &&
     statuses.includes(j.status) && typeof j.technicianNotes === "string" &&
@@ -61,7 +65,7 @@ function writeJobs(jobs: Job[]) {
   catch { throw new Error("Could not save in this browser. Storage may be full or unavailable. Keep this page open and try again."); }
 }
 
-export function createJob(intake: Intake): Job {
+export function createJob(intake: Intake, service?: ServiceContext): Job {
   const cleaned = Object.fromEntries(Object.entries(intake).map(([k, v]) => [k, v.trim()])) as Intake;
   const errors = validateIntake(cleaned);
   if (errors.length) throw new Error(errors.join(" "));
@@ -69,6 +73,7 @@ export function createJob(intake: Intake): Job {
   const job: Job = {
     id, reference: `RH-${id.slice(0, 8).toUpperCase()}`,
     createdAt: new Date().toISOString(), intake: cleaned, status: "Received", technicianNotes: "",
+    service: validateServiceContext(service),
   };
   const jobs = readJobs();
   writeJobs([job, ...jobs]);
@@ -92,7 +97,7 @@ export function formatDate(value: string): string {
 }
 
 export const intakeLabels: Record<keyof Intake, string> = {
-  customerName: "Customer", contact: "Contact", device: "Device", issue: "Customer-reported problem",
+  customerName: "Customer", contact: "Contact", device: "Item / asset", issue: "Customer-reported problem",
   condition: "Condition recorded at intake", accessories: "Accessories received", instructions: "Customer instructions",
   spendingLimit: "Spending limit (not repair approval)", approval: "Approval requirement", promisedDate: "Agreed completion date",
 };

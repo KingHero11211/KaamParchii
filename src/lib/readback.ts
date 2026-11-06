@@ -1,4 +1,6 @@
 import type { Intake } from "./jobs";
+import type { ConversationLanguage } from "./service-context.ts";
+import { localizedReadback } from "./localized-speech.ts";
 
 export const MAX_READBACK_CHARS = 6000;
 const small = ["शून्य", "एक", "दो", "तीन", "चार", "पाँच", "छह", "सात", "आठ", "नौ", "दस", "ग्यारह", "बारह", "तेरह", "चौदह", "पंद्रह", "सोलह", "सत्रह", "अठारह", "उन्नीस", "बीस", "इक्कीस", "बाईस", "तेईस", "चौबीस", "पच्चीस", "छब्बीस", "सत्ताईस", "अट्ठाईस", "उनतीस", "तीस", "इकतीस", "बत्तीस", "तैंतीस", "चौंतीस", "पैंतीस", "छत्तीस", "सैंतीस", "अड़तीस", "उनतालीस", "चालीस", "इकतालीस", "बयालीस", "तैंतालीस", "चवालीस", "पैंतालीस", "छियालीस", "सैंतालीस", "अड़तालीस", "उनचास", "पचास", "इक्यावन", "बावन", "तिरपन", "चौवन", "पचपन", "छप्पन", "सत्तावन", "अट्ठावन", "उनसठ", "साठ", "इकसठ", "बासठ", "तिरसठ", "चौंसठ", "पैंसठ", "छियासठ", "सड़सठ", "अड़सठ", "उनहत्तर", "सत्तर", "इकहत्तर", "बहत्तर", "तिहत्तर", "चौहत्तर", "पचहत्तर", "छिहत्तर", "सतहत्तर", "अठहत्तर", "उनासी", "अस्सी", "इक्यासी", "बयासी", "तिरासी", "चौरासी", "पचासी", "छियासी", "सतासी", "अट्ठासी", "नवासी", "नब्बे", "इक्यानवे", "बानवे", "तिरानवे", "चौरानवे", "पचानवे", "छियानवे", "सत्तानवे", "अट्ठानवे", "निन्यानवे"];
@@ -36,9 +38,14 @@ function spokenValue(value: string): string {
   }).replace(/\s+/g, " ").trim();
 }
 
-export function buildReadback(intake: Intake): string {
+export function buildReadback(intake: Intake, language: ConversationLanguage = "hi-en"): string {
   const values = Object.values(intake);
   if (values.some(value => typeof value !== "string" || value.length > 2000)) throw new Error("A field is too long for spoken review. Shorten it manually; no text was truncated.");
+  if (language !== "hi-en") {
+    const text = localizedReadback(intake, language);
+    if (text.length > MAX_READBACK_CHARS) throw new Error("The summary is too long for one read-back. Shorten the fields manually; no instructions were truncated.");
+    return text;
+  }
   const value = (key: keyof Intake) => intake[key].trim() ? spokenValue(intake[key]) : "दर्ज नहीं किया गया";
   let date = "दर्ज नहीं की गई";
   if (intake.promisedDate) {
@@ -49,9 +56,9 @@ export function buildReadback(intake: Intake): string {
   }
   const contact = intake.contact.trim() ? spokenValue(intake.contact.replace(/\d/g, digit => `${small[Number(digit)]} `)) : "दर्ज नहीं किया गया";
   const text = [
-    "कृपया फ़ोन जमा करने की यह जानकारी सुनकर जाँच लें।",
+    "कृपया मरम्मत या रखरखाव की यह जानकारी सुनकर जाँच लें।",
     `ग्राहक का नाम: ${value("customerName")}। संपर्क: ${contact}।`,
-    `डिवाइस: ${value("device")}। ग्राहक ने बताई समस्या: ${value("issue")}।`,
+    `वस्तु या संपत्ति: ${value("device")}। ग्राहक ने बताई समस्या: ${value("issue")}।`,
     `जमा करते समय दर्ज हालत: ${value("condition")}। साथ मिले सामान की जानकारी: ${value("accessories")}।`,
     `ग्राहक के पूरे निर्देश: ${value("instructions")}।`,
     `खर्च की बताई सीमा: ${intake.spendingLimit.trim() ? rupeesInHindi(intake.spendingLimit.trim()) : "दर्ज नहीं की गई"}।`,

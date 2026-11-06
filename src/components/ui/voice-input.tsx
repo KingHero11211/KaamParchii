@@ -88,7 +88,7 @@ export function VoiceInput({ recording, busy, seconds, stream, disabled, label, 
       </AnimatePresence>
       {!recording && <span className="voice-input-idle">{busy ? "Please wait" : label}</span>}
     </motion.div>
-    <p className="voice-input-help">{recording ? "Tap the square to finish · stops at 28 seconds" : "Hindi, English, or a mix · up to 28 seconds"}</p>
+    <p className="voice-input-help">{recording ? "Tap the square to finish · stops at 28 seconds" : "Use the selected conversation language · up to 28 seconds"}</p>
     <div className="voice-input-progress" aria-hidden="true"><span style={{ width: recording ? Math.min(100, seconds / 28 * 100) + "%" : "0%" }} /></div>
   </div>;
 }

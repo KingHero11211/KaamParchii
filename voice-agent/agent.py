@@ -59,10 +59,18 @@ async def approval_session(ctx):
     for path in OUTBOX.glob("report-*.json"):
         await deliver_report(path)
 
+    language = metadata.get("language", "hi-en")
+    if language not in ("hi-en", "en-IN", "te-IN"):
+        raise ValueError("Unsupported conversation language.")
+    topic = str(metadata.get("topic", "Repair and maintenance approval"))[:200]
+    greeting = str(metadata.get("greeting", "Namaste. Main automated assistant KaamParchi hoon. Kya abhi repair ke baare mein baat karna theek rahega?"))
+    if not greeting or len(greeting) > 1500:
+        raise ValueError("Invalid conversation greeting.")
+    greeting = greeting.replace("<", " ").replace(">", " ")
     model = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
     session = AgentSession(
-        stt=PrismaSTT(),
-        tts=TimbreTTS(),
+        stt=PrismaSTT(language, topic),
+        tts=TimbreTTS(language),
         llm=google.LLM(
             model=model,
             api_key=os.environ["GEMINI_API_KEY"],
@@ -110,10 +118,10 @@ async def approval_session(ctx):
             "\nThis is a spoken conversation. Never use markdown, bullets, numbered lists, or parenthetical translations. "
             "Use two or three short sentences per turn. Ask exactly ONE question, about ONE proposal item, then wait. "
             "After identity confirmation, state original and revised total and ask ONLY about the revised price. "
-            "In subsequent turns ask about each action individually, explaining data loss before asking about reset. "
+            "In subsequent turns ask about each proposed action individually. Explain consequences only when relevant to the proposed work. "
             "Do not combine price, replacement and reset approval in one question. "
             "After all individual answers, read the entire decision summary and ask for confirmation. "
-            "Say rupee amounts as Hindi words when speaking Hindi. The customer can end with the on-screen End voice session button."),
+            "Speak only in the selected conversation language, including monetary amounts. Never invent a Hindi fallback for a Telugu session. The customer can end with the on-screen End voice session button."),
         room_options=RoomOptions(
             participant_identity=participant.identity,
             text_input=False,
@@ -135,8 +143,9 @@ async def approval_session(ctx):
     async def explain_model_failure():
         try:
             await session.say(
-                "Maaf kijiye, conversation service abhi available nahi hai. "
-                "Is adhuri baat ko repair ki permission mat samajhiye. Shop se dobara confirm karein.",
+                {"te-IN": "క్షమించండి. సంభాషణ సేవ ప్రస్తుతం అందుబాటులో లేదు. ఈ అసంపూర్తి సంభాషణను పనికి అనుమతిగా భావించవద్దు. దుకాణంతో మళ్లీ నిర్ధారించుకోండి.",
+                 "en-IN": "The conversation service is currently unavailable. This incomplete discussion is not repair permission. Please confirm with the shop.",
+                 "hi-en": "Maaf kijiye, conversation service abhi available nahi hai. Is adhuri baat ko repair ki permission mat samajhiye. Shop se dobara confirm karein."}[language],
                 allow_interruptions=False,
             )
         finally:
@@ -148,12 +157,7 @@ async def approval_session(ctx):
             failure_task = asyncio.create_task(explain_model_failure())
 
     session.on("error", on_error)
-    name = str(metadata.get("customerName", "customer"))[:160].replace("<", " ").replace(">", " ")
-    await session.say(
-        "Namaste. Main Nukkad Mobile Care ki automated assistant KaamParchi hoon. Kya meri baat " + name +
-        " se ho rahi hai? Kya abhi repair ke baare mein baat karna theek rahega?",
-        allow_interruptions=True,
-    )
+    await session.say(greeting, allow_interruptions=True)
 
 
 if __name__ == "__main__":

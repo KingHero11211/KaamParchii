@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { legacyServiceContext, conversationLanguages, speechCode, type ServiceContext } from "@/lib/service-context";
 import { prepareAudio } from "@/lib/audio";
 import { VoiceInput } from "@/components/ui/voice-input";
 
-type Props = { transcript: string; onTranscriptChange: (value: string) => void; disabled?: boolean; purpose?: "intake" | "plan" | "clarification"; onActivityChange?: (active: boolean) => void };
+type Props = { service?: ServiceContext; transcript: string; onTranscriptChange: (value: string) => void; disabled?: boolean; purpose?: "intake" | "plan" | "clarification"; onActivityChange?: (active: boolean) => void };
 
-export default function VoiceIntake({ transcript, onTranscriptChange, disabled = false, purpose = "intake", onActivityChange }: Props) {
+export default function VoiceIntake({ transcript, onTranscriptChange, disabled = false, purpose = "intake", onActivityChange, service = legacyServiceContext }: Props) {
   const [consent, setConsent] = useState(false);
-  const [language, setLanguage] = useState("hi-IN,en-IN");
+
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -114,7 +115,7 @@ export default function VoiceIntake({ transcript, onTranscriptChange, disabled =
     const controller = new AbortController(); request.current = controller;
     try {
       const form = new FormData();
-      form.set("audio_file", audio.file); form.set("consent", "true"); form.set("language_code", language);
+      form.set("audio_file", audio.file); form.set("consent", "true"); form.set("language_code", speechCode(service.language)); form.set("service", JSON.stringify(service));
       const response = await fetch("/api/transcribe", { method: "POST", body: form, signal: controller.signal });
       const result = await response.json();
       if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : "Transcription failed.");
@@ -138,7 +139,7 @@ export default function VoiceIntake({ transcript, onTranscriptChange, disabled =
   return <section className="panel voice-panel" aria-labelledby="voice-heading" style={{ marginBottom: 24 }}>
     <div className="panel-head"><div><h2 id="voice-heading">{purpose === "plan" ? "Speak your repair plan" : purpose === "clarification" ? "Record a customer clarification" : "Start with the conversation"}</h2><p className="hint">Record a short clip or upload audio. Prisma transcribes it; you review the details.</p></div><span className="badge">Gnani Prisma v3.0</span></div>
     <div className="form-body">
-      <label htmlFor="speech-language">Spoken language</label><select id="speech-language" value={language} disabled={disabled || busy || recording} onChange={e => setLanguage(e.target.value)}><option value="hi-IN,en-IN">Hindi / English / Hinglish</option><option value="indic-auto">Auto-detect Indian language</option></select>
+      <p className="hint">Conversation language · {conversationLanguages[service.language].label}</p>
       <div className="check" style={{ margin: "20px 0", borderRadius: 10 }}><input id="audio-consent" type="checkbox" checked={consent} disabled={disabled || busy || recording} onChange={e => setConsent(e.target.checked)} /><label htmlFor="audio-consent">I have permission from everyone speaking to record and send this audio to Gnani for transcription. This app does not save the audio after the page is closed.</label></div>
       <VoiceInput recording={recording} busy={busy} seconds={seconds} stream={recording ? stream.current : null}
         disabled={disabled || !consent}

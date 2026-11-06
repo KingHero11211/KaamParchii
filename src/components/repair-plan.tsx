@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import VoiceIntake from "@/components/voice-intake";
+import { legacyServiceContext, type ServiceContext } from "@/lib/service-context";
 import type { Intake } from "@/lib/jobs";
 import type { PlanCheck } from "@/lib/plan-check";
 import AgentAudio from "@/components/ui/agent-audio";
 
-export default function RepairPlan({ intake }: { intake: Intake }) {
+export default function RepairPlan({ intake, service = legacyServiceContext }: { intake: Intake; service?: ServiceContext }) {
   const [plan, setPlan] = useState("");
   const [clarification, setClarification] = useState("");
   const [clarificationQuestion, setClarificationQuestion] = useState("");
@@ -44,7 +45,7 @@ export default function RepairPlan({ intake }: { intake: Intake }) {
       const response = await fetch("/api/plan-check", {
         method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
         body: JSON.stringify({
-          action, consent: true, plan, clarification, clarificationQuestion,
+          action, consent: true, plan, clarification, clarificationQuestion, service,
           terms: { instructions: intake.instructions, spendingLimit: intake.spendingLimit, approval: intake.approval },
           result,
         }),
@@ -69,7 +70,7 @@ export default function RepairPlan({ intake }: { intake: Intake }) {
   return <section className="panel parchi-section repair-plan" aria-labelledby="plan-title">
     <div className="eyebrow">Customer instructions at the workbench</div>
     <h2 id="plan-title">Check the proposed repair</h2>
-    <p>Describe the work, total price and any data changes. Compare the plan with the confirmed customer terms before proceeding.</p>
+    <p>Describe the work, total price and any changes to the item or property. Compare the plan with the confirmed customer terms before proceeding.</p>
     <div className="toolbar" style={{ marginBottom: 20 }}>
       <button className="button secondary" disabled={busy || voiceBusy} aria-pressed={mode === "plan"} onClick={() => setMode("plan")}>Technician plan</button>
       <button className="button secondary" disabled={busy || voiceBusy || !question} aria-pressed={mode === "clarification"} onClick={() => {
@@ -78,7 +79,7 @@ export default function RepairPlan({ intake }: { intake: Intake }) {
       }}>Customer clarification</button>
     </div>
     {mode === "clarification" && <div className="notice"><strong>{clarification.trim() ? "Question answered in this draft" : "Ask the customer"}</strong><p>{clarificationQuestion}</p><p>Record their answer as a draft. Confirm any repair approval separately with the customer.</p></div>}
-    <VoiceIntake key={mode} purpose={mode} transcript={mode === "plan" ? plan : clarification}
+    <VoiceIntake service={service} key={mode} purpose={mode} transcript={mode === "plan" ? plan : clarification}
       onTranscriptChange={edit} disabled={busy} onActivityChange={setVoiceBusy} />
     {mode === "clarification" && <p className="hint">Your plan remains available in the Technician plan tab. Clarifications stay in this session and leave the original intake intact.</p>}
     <div className="check">

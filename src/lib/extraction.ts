@@ -7,7 +7,7 @@ export type Extraction = { fields: Record<keyof Intake, SuggestedField>; instruc
 const fieldDescription: Record<keyof Intake, string> = {
   customerName: "Customer name only when stated. Preserve the transcript's script and spelling, e.g. श्याम stays श्याम. Copy evidence directly in the original script; never translate or transliterate the quote. Do not confuse the technician name with the customer.",
   contact: "Customer contact exactly as supplied, never invent digits.",
-  device: "Device brand/model only as stated.",
+  device: "Item, asset, appliance, vehicle, fitting or work location exactly as stated. Include brand/model only if supplied.",
   issue: "Customer-reported symptoms, not diagnosis or a proposed fix.",
   condition: "Condition explicitly observed/stated. Do not infer damage from a symptom.",
   accessories: "Included and explicitly excluded accessories. Preserve negation.",
@@ -53,11 +53,11 @@ function explicitHindiCustomerName(transcript: string): SuggestedField | null {
 function preserveInstructions(transcript: string, clauses: unknown, warnings: string[]) {
   if (!Array.isArray(clauses) || clauses.length > 1000 || clauses.some(quote => typeof quote !== "string")) throw new Error("Invalid instruction clauses.");
   const secret = /\b(?:password|passcode|pin|unlock\s+code)\b\s*(?:(?:is|hai|:|=)\s*\S+|["']?(?=[\p{L}\p{N}]*\p{N})[\p{L}\p{N}]{3,})|(?:पासवर्ड|पिन|अनलॉक\s*कोड)\s*(?:है|:|=)?\s*\p{N}{3,}/iu;
-  if (secret.test(transcript)) throw new InstructionCompletenessError("Remove device passwords, PINs or unlock codes from the transcript before generating a draft. No instructions were applied.");
+  if (secret.test(transcript) || /(?:పాస్‌వర్డ్|పాస్వర్డ్|పిన్|అన్‌లాక్\s*కోడ్)\s*(?:[:=]|అంటే|ఇది)?\s*\p{N}{3,}/u.test(transcript)) throw new InstructionCompletenessError("Remove device passwords, PINs or unlock codes from the transcript before generating a draft. No instructions were applied.");
   const source = normalise(transcript);
   // High-recall fallback for common English, Roman Hindi and Devanagari directives.
   // This is not a semantic completeness guarantee; the full transcript remains reviewable.
-  const directive = /\b(?:don't|do not|never|please|must|before|permission|approval|call|notify|inform|preserve|without|keep|mat|pehle|pahle|ijazat|ijaazat|bina|batana|pooch|puch|rakhna|bachana|chahiye)\b|मत\s|पहले|अनुमति|इजाज़त|बिना|कॉल\s*कर|फोन\s*कर/u;
+  const directive = /\b(?:don't|do not|never|please|must|before|permission|approval|call|notify|inform|preserve|without|keep|mat|pehle|pahle|ijazat|ijaazat|bina|batana|pooch|puch|rakhna|bachana|chahiye)\b|मत\s|पहले|अनुमति|इजाज़त|बिना|कॉल\s*कर|फोन\s*कर|వద్దు|ముందు|అనుమతి|లేకుండా|కాల్|ఫోన్\s*చే|మించి|దాటితే/u;
   const segments = transcript.split(/(?<=[.!?;])(?=\s|$)|(?<=।)|\n+/u).map(normalise).filter(Boolean);
   const fallback = segments.filter(segment => directive.test(segment.toLowerCase()));
   const spans = new Map<string, { start: number; end: number; quote: string }>();

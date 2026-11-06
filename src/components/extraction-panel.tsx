@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { legacyServiceContext, type ServiceContext } from "@/lib/service-context";
 import { extractionKeys, validateExtraction, type Extraction } from "@/lib/extraction";
 import { intakeLabels, type Intake } from "@/lib/jobs";
 
-type Props = { transcript: string; intake: Intake; onApply: (values: Partial<Intake>) => void; onBusyChange: (busy: boolean) => void; disabled?: boolean };
+type Props = { service?: ServiceContext; transcript: string; intake: Intake; onApply: (values: Partial<Intake>) => void; onBusyChange: (busy: boolean) => void; disabled?: boolean };
 
-export default function ExtractionPanel({ transcript, intake, onApply, onBusyChange, disabled = false }: Props) {
+export default function ExtractionPanel({ service = legacyServiceContext, transcript, intake, onApply, onBusyChange, disabled = false }: Props) {
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ extraction: Extraction; transcript: string } | null>(null);
@@ -38,7 +39,7 @@ export default function ExtractionPanel({ transcript, intake, onApply, onBusyCha
     const abort = new AbortController(); controller.current = abort;
     working.current = true; setBusy(true); onBusyChange(true); setError(""); setResult(null); setSelected([]); setMessage("");
     try {
-      const response = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript: snapshot, consent: true }), signal: abort.signal });
+      const response = await fetch("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript: snapshot, consent: true, service }), signal: abort.signal });
       const body = await response.json();
       if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : "Could not extract intake details.");
       if (!mounted.current || snapshot !== latestTranscript.current) return;

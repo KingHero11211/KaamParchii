@@ -1,4 +1,4 @@
-import asyncio, uuid, json, os, io, wave
+import asyncio, uuid, json, os, io, wave, sys
 from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
@@ -10,6 +10,9 @@ async def main():
     sid=str(uuid.uuid4())
     headers={'Origin':origin, 'x-kaamparchi-browser':str(uuid.uuid4())}
     proposal={'jobId':str(uuid.uuid4()),'reference':'KP-VOICE-SMOKE','customerName':'Demo Customer','phone':'','device':'Demo phone','instructions':'Do not reset. Preserve data.','originalLimit':'600','total':'900','actions':['Replace motherboard','Reset phone, which may erase stored data']}
+    telugu = "--telugu" in sys.argv
+    if telugu:
+        proposal.update(customerName="శ్యామ్", device="వాషింగ్ మెషిన్", instructions="ముందు అనుమతి తీసుకోండి. పంప్ మార్చవద్దు.", actions=["పంప్ మార్చడం"], service={"shopName":"Shyam Appliance Care", "category":"appliances", "language":"te-IN"})
     audio_seen=asyncio.Event()
     room=rtc.Room()
     tasks=[]
@@ -34,7 +37,7 @@ async def main():
             print('GNANI_GREETING_AUDIO_RECEIVED', flush=True)
             await asyncio.sleep(18)
             async with http.post('https://api.vachana.ai/api/v1/tts/inference', headers={'X-API-Key-ID':os.environ['GNANI_API_KEY']}, json={
-                'text':'Haan, main Demo Customer bol raha hoon. Bataiye repair mein kya badla hai?', 'model':'timbre-v3.0','voice':'Shivani','language':'hi-en','speed':1,
+                'text':('అవును, నేను శ్యామ్ మాట్లాడుతున్నాను. మరమ్మతు గురించి చెప్పండి.' if telugu else 'Haan, main Demo Customer bol raha hoon. Bataiye repair mein kya badla hai?'), 'model':'timbre-v3.0','voice':'Shivani','language':('te-IN' if telugu else 'hi-en'),'speed':1,
                 'audio_config':{'sample_rate':24000,'num_channels':1,'sample_width':2,'encoding':'linear_pcm','container':'wav'}}) as response:
                 clip=await response.read()
                 assert response.status==200, 'Customer fixture generation failed'
@@ -61,6 +64,6 @@ async def main():
             async with http.post(origin+'/api/customer-calls',headers=headers,json={'action':'list','jobId':proposal['jobId']}) as response:
                 records=(await response.json()).get('calls',[])
                 if records and records[0].get('transcript'):
-                    print('TRANSCRIPT_SAVED',len(records[0]['transcript']),'ROLES',[turn['role'] for turn in records[0]['transcript']]); assert any(turn['role']=='user' for turn in records[0]['transcript']), 'Customer transcription missing'; return
+                    print('TRANSCRIPT_SAVED',len(records[0]['transcript']),'ROLES',[turn['role'] for turn in records[0]['transcript']]); assert any(turn['role']=='user' for turn in records[0]['transcript']), 'Customer transcription missing'; print('TELUGU_TURNS',sum(any('\u0c00'<=char<='\u0c7f' for char in turn['content']) for turn in records[0]['transcript'])) if telugu else None; return
         raise AssertionError('Final transcript was not saved within the smoke check window')
 asyncio.run(main())

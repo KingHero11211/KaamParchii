@@ -20,6 +20,8 @@ Keep `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `GNANI_API_KEY`, an
 
 ## Try it
 
+New jobs save their shop, category and conversation language. Telugu and English sessions configure worker recognition, speech, greeting and dialogue accordingly; old jobs retain Hindi/Hinglish defaults. `tests/voice_smoke.py --telugu` runs a fictional Telugu appliance session.
+
 Open a saved job. In Ask before the repair, enter the complete revised price and each proposed action on a separate line. Preview, review the exact scope, and confirm permission. Click Start browser conversation and allow microphone access. End the session, refresh conversation history, then inspect the transcript before extracting and reviewing suggested decisions.
 
 Example proposal: total 900, replace motherboard, reset phone which may erase stored data. Example customer reply: Haan, main Ravi bol raha hoon. Nau sau rupaye aur motherboard ke liye haan, lekin phone reset mat karna. Wait for the assistant to read each decision back, and correct it if needed.

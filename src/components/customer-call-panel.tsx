@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { approvalItems, getCallBrowserToken, validateProposal, type CustomerCall } from "@/lib/customer-calls";
+import { serviceForJob, serviceCategories, conversationLanguages } from "@/lib/service-context";
 import BrowserApproval from "@/components/browser-approval";
 import { formatDate, type Job } from "@/lib/jobs";
 
 export default function CustomerCallPanel({ job }: { job: Job }) {
+  const service = serviceForJob(job);
   const [total, setTotal] = useState("");
   const [actions, setActions] = useState("");
   const [permission, setPermission] = useState(false);
@@ -49,7 +51,7 @@ export default function CustomerCallPanel({ job }: { job: Job }) {
     return validateProposal({
       jobId: job.id, reference: job.reference, customerName: job.intake.customerName,
       device: job.intake.device, phone: "", total, actions: actions.split("\n").filter(value => value.trim()),
-      instructions: job.intake.instructions, originalLimit: job.intake.spendingLimit,
+      instructions: job.intake.instructions, originalLimit: job.intake.spendingLimit, service,
     }, false);
   }
   function edit(change: () => void) { change(); setReviewed(false); setPreview(false); setPermission(false); }
@@ -76,11 +78,12 @@ export default function CustomerCallPanel({ job }: { job: Job }) {
   return <section className="panel parchi-section call-panel" aria-labelledby="customer-call-heading">
     <div className="eyebrow">Customer approval</div>
     <h2 id="customer-call-heading">Ask before the repair</h2>
+    <p className="hint">{service.shopName} · {conversationLanguages[service.language].label}</p>
     <p>Prepare the exact revised price and work. The customer can discuss each item with KaamParchi in a live browser conversation.</p>
     <div className="fields">
       <div className="field"><label htmlFor="call-total">Complete revised total · ₹</label><input id="call-total" inputMode="decimal" value={total} disabled={busy || voiceActive} onChange={e => edit(() => setTotal(e.target.value))} placeholder="e.g. 900" /></div>
       <div className="field full"><label htmlFor="call-actions">Proposed work · one action per line</label><textarea id="call-actions" value={actions} maxLength={1500} disabled={busy || voiceActive}
-        placeholder={"Replace motherboard\nReset phone, which may erase stored data"} onChange={e => edit(() => setActions(e.target.value))} />
+        placeholder={"Describe one specific action per line for " + serviceCategories[service.category].label.toLowerCase()} onChange={e => edit(() => setActions(e.target.value))} />
         <p className="hint">Include any data-loss consequences. Up to five specific actions. Confirm the total includes all proposed work.</p></div>
     </div>
     <button className="button secondary" disabled={busy || voiceActive} onClick={() => {

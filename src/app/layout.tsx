@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "KaamParchi | Repair job desk",
-  description: "A clear, customer-confirmed intake record for phone repair shops.",
+  description: "Voice-assisted customer instructions, repair handovers and maintenance approvals across service businesses.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,3 +1,5 @@
+import { validateServiceContext, serviceCategories, speechCode } from "../../../lib/service-context.ts";
+
 export const runtime = "nodejs";
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -23,8 +25,11 @@ export async function POST(request: Request) {
   if (!(file instanceof File) || !file.size) return reply("Choose a non-empty audio recording.", 400);
   if (file.size > MAX_BYTES) return reply("Choose an audio file smaller than 8 MB.", 413);
   if (!allowedExtensions.has(file.name.split(".").pop()?.toLowerCase() ?? "")) return reply("Use WAV, MP3, OGG, FLAC, AAC or M4A audio.", 400);
+  let service;
+  try { service = validateServiceContext(form.has("service") ? JSON.parse(String(form.get("service"))) : undefined); }
+  catch { return reply("Choose a valid shop and conversation language.", 400); }
   const language = form.get("language_code");
-  if (language !== "hi-IN,en-IN" && language !== "indic-auto") return reply("Choose Hindi/English or automatic Indian-language detection.", 400);
+  if (!["hi-IN,en-IN", "en-IN", "te-IN", "indic-auto"].includes(String(language)) || (form.has("service") && language !== speechCode(service.language))) return reply("Use the selected conversation language for transcription.", 400);
   const key = process.env.GNANI_API_KEY?.trim();
   if (!key) return reply("Gnani is not connected yet. Add GNANI_API_KEY to .env.local and restart the app. Your recording has not been sent.", 503);
   if (inFlight) return reply("Another transcription is running. Wait for it to finish, then try again.", 429);
@@ -34,10 +39,10 @@ export async function POST(request: Request) {
     // Use a neutral filename rather than forwarding potentially identifying upload names.
     payload.set("audio_file", file, `intake.${file.name.split(".").pop()!.toLowerCase()}`);
     payload.set("model", "prisma-v3.0");
-    payload.set("language_code", language);
+    payload.set("language_code", String(language));
     payload.set("format", "transcribe");
-    payload.set("topic", "Mobile phone repair intake: reported faults, accessories, device condition, customer instructions and spending limits. Preserve corrections and negations.");
-    payload.set("keyterms", JSON.stringify(["Samsung", "Redmi", "Realme", "iPhone", "OnePlus", "charging port", "display", "data", "charger"]));
+    payload.set("topic", serviceCategories[service.category].topic + ": reported faults, received items, asset condition, customer instructions and spending limits. Preserve corrections and negations.");
+    payload.set("keyterms", JSON.stringify(serviceCategories[service.category].keyterms));
     const response = await fetch("https://api.vachana.ai/stt/v3", {
       method: "POST", headers: { "X-API-Key-ID": key, "X-API-Request-ID": crypto.randomUUID() },
       body: payload, signal: AbortSignal.any([AbortSignal.timeout(60000), request.signal]), cache: "no-store",

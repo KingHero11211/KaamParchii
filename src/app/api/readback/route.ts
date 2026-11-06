@@ -1,3 +1,4 @@
+import { validateServiceContext } from "@/lib/service-context";
 import { emptyIntake, validateIntake, type Intake } from "@/lib/jobs";
 import { buildReadback } from "@/lib/readback";
 
@@ -18,8 +19,11 @@ export async function POST(request: Request) {
   if (!Object.keys(emptyIntake).every(key => typeof raw[key] === "string")) return reply("The intake contains invalid fields.", 400);
   const intake = Object.fromEntries(Object.keys(emptyIntake).map(key => [key, raw[key]])) as Intake;
   if (!["Not recorded", "Ask before any paid work"].includes(intake.approval) || validateIntake(intake).length) return reply("Check the required intake details and spending amount before spoken review.", 400);
+  let service;
+  try { service = validateServiceContext("service" in body ? body.service : undefined); }
+  catch { return reply("Choose a valid conversation language.", 400); }
   let text: string;
-  try { text = buildReadback(intake); } catch (e) { return reply(e instanceof Error ? e.message : "This intake cannot be read aloud.", 422); }
+  try { text = buildReadback(intake, service.language); } catch (e) { return reply(e instanceof Error ? e.message : "This intake cannot be read aloud.", 422); }
   const key = process.env.GNANI_API_KEY?.trim();
   if (!key) return reply("Gnani is not configured. Add GNANI_API_KEY to .env.local and restart the app.", 503);
   if (inFlight) return reply("Another read-back is being generated. Wait for it to finish.", 429);
@@ -28,7 +32,7 @@ export async function POST(request: Request) {
     const response = await fetch("https://api.vachana.ai/api/v1/tts/inference", {
       method: "POST", cache: "no-store", headers: { "Content-Type": "application/json", "X-API-Key-ID": key },
       signal: AbortSignal.any([AbortSignal.timeout(90000), request.signal]),
-      body: JSON.stringify({ text, model: "timbre-v3.0", voice: "Shivani", language: "hi-en", speed: 1,
+      body: JSON.stringify({ text, model: "timbre-v3.0", voice: "Shivani", language: service.language, speed: 1,
         audio_config: { sample_rate: 24000, num_channels: 1, sample_width: 2, encoding: "linear_pcm", container: "wav" } }),
     });
     if (!response.ok) {

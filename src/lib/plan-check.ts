@@ -1,3 +1,5 @@
+import type { ConversationLanguage } from "./service-context.ts";
+import { moneyWords, spokenText } from "./localized-speech.ts";
 export type PlanTerms = { instructions: string; spendingLimit: string; approval: string };
 export type Concern = { message: string; customerQuote: string; planQuote: string };
 export type PlanCheck = { concerns: Concern[]; question: string; estimate: string; estimateEvidence: string };
@@ -12,7 +14,14 @@ export function validateClarification(answer: unknown, question: unknown): { ans
   return { answer: answer.trim(), question: question.trim() };
 }
 
-export function buildPlanReminder(check: PlanCheck): string {
+export function buildPlanReminder(check: PlanCheck, language: ConversationLanguage = "hi-en"): string {
+  if (language !== "hi-en") {
+    const telugu = language === "te-IN";
+    const opening = telugu ? (check.concerns.length ? "ఆగండి. పని ప్రారంభించే ముందు కస్టమర్ సూచనలు మరియు అనుమతి సరిచూడండి. " : "ఈ పరిశీలనలో విరుద్ధత కనిపించలేదు. చెల్లింపు పనికి ముందు కస్టమర్ అనుమతి తీసుకోండి. ") : (check.concerns.length ? "Stop. Check the customer instructions and permission before starting work. " : "No conflict was identified in this check. Confirm permission before paid work. ");
+    const text = spokenText(opening + check.concerns.map(item=>item.message).join(" ") + (telugu ? " కస్టమర్‌ను అడగండి. " : " Ask the customer. ") + check.question, language);
+    if (text.length > 6000) throw new Error("These findings are too long for one spoken reminder. Review them on screen.");
+    return text;
+  }
   const opening = check.concerns.length
     ? "Rukiye. Repair shuru karne se pehle customer ki instructions aur permission check karein. "
     : "Is check mein customer ki instructions ke saath koi conflict nahi mila. Paid work se pehle customer ki permission confirm karein. ";
@@ -45,7 +54,7 @@ export function validateTerms(value: unknown): PlanTerms {
   return { instructions: terms.instructions, spendingLimit: terms.spendingLimit, approval: terms.approval };
 }
 
-export function validatePlanCheck(value: unknown, terms: PlanTerms, plan: string): PlanCheck {
+export function validatePlanCheck(value: unknown, terms: PlanTerms, plan: string, language: ConversationLanguage = "hi-en"): PlanCheck {
   if (!value || typeof value !== "object") throw new Error("Incomplete plan check.");
   const result = value as PlanCheck;
   if (!Array.isArray(result.concerns) || result.concerns.length > 12 ||
@@ -53,7 +62,7 @@ export function validatePlanCheck(value: unknown, terms: PlanTerms, plan: string
       typeof result.estimate !== "string" || typeof result.estimateEvidence !== "string") throw new Error("Incomplete plan check.");
   const source = terms.instructions + "\n" + terms.approval;
   const priceConcern = result.estimate && terms.spendingLimit && Number(result.estimate) > Number(terms.spendingLimit) ? {
-    message: "The proposed ₹" + result.estimate + " total exceeds the recorded ₹" + terms.spendingLimit + " limit.",
+    message: language === "te-IN" ? "ప్రతిపాదిత మొత్తం " + moneyWords(result.estimate,"te-IN") + ", నమోదైన " + moneyWords(terms.spendingLimit,"te-IN") + " పరిమితి కంటే ఎక్కువ." : "The proposed ₹" + result.estimate + " total exceeds the recorded ₹" + terms.spendingLimit + " limit.",
     customerQuote: "Recorded spending limit: ₹" + terms.spendingLimit,
     planQuote: result.estimateEvidence,
   } : null;

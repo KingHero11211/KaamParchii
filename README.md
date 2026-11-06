@@ -1,10 +1,12 @@
 # KaamParchi
 
-A voice-assisted repair intake and technician handover prototype for small phone repair shops, built for the Gnani AI internship challenge.
+A voice-assisted repair intake and technician handover prototype for repair and maintenance businesses, built for the Gnani AI internship challenge.
 
-Gnani Prisma captures Hindi, English and mixed-language speech. The shop reviews the extracted details, hears a Gnani Timbre readback and confirms the intake. At the workbench, a technician speaks the proposed repair; the app checks it against the customer's instructions and budget, shows supporting quotes and speaks a warning. A LiveKit browser conversation lets the customer discuss revised prices and individual repair actions.
+Gnani Prisma captures Hindi/Hinglish, English and Telugu speech using an explicit conversation-language setting. The shop reviews the extracted details, hears a Gnani Timbre readback and confirms the intake. At the workbench, a technician speaks the proposed repair; the app checks it against the customer's instructions and budget, shows supporting quotes and speaks a warning. A LiveKit browser conversation lets the customer discuss revised prices and individual repair actions.
 
 ## Features
+
+- Per-job shop name, service category and conversation language. Categories cover general repairs, electronics, appliances/AC, vehicles and home maintenance.
 
 - Recording or audio upload, editable transcription, and removal of incorrect recordings.
 - Gemini draft extraction with transcript evidence and preserved customer instructions.
@@ -48,6 +50,14 @@ npm.cmd run voice
 ```
 
 The npm voice command targets Windows. On Linux/macOS, use `.venv/bin/python voice-agent/agent.py start`. Keep both the website and worker running. See [browser voice setup](docs/livekit-browser.md) for details and verification limits.
+
+## Shop categories and Telugu
+
+New intake begins with shop name, service category and conversation language. The selected settings are saved with the job and its approval proposals; later settings do not rewrite older jobs. Legacy jobs keep their original Nukkad Mobile Care / Hindi-Hinglish context.
+
+Choose Telugu to use Telugu transcription, field suggestions, clarification questions, spoken summaries/warnings and browser voice. The UI and receipt labels remain English. Free-form text is read as entered; switching language does not automatically translate existing entries. Each category has a Telugu sample. Bhojpuri and Haryanvi are not offered.
+
+Local development uses Webpack because the default Turbopack development session repeatedly refreshed the form in this workspace. Production builds retain the default Next.js compiler. See [verification](docs/telugu-service-verification.md).
 
 ## Environment variables
 
@@ -96,6 +106,6 @@ References: [Vercel and SQLite](https://vercel.com/kb/guide/is-sqlite-supported-
 - Browser jobs can be lost when browser storage is cleared. Conversation records are server-local and browser-scoped.
 - Gemini may return temporary errors. No cross-provider fallback is configured.
 - Speech is processed after utterances using Gnani REST APIs; this is not continuous Gnani streaming.
-- The shop, Nukkad Mobile Care, is fictional. Technician notes are excluded from customer receipts.
+- Default shop names and sample records are fictional. Technician notes are excluded from customer receipts.
 
 See [demo script](docs/demo-60-seconds.md) and [repair-plan verification](docs/repair-plan-verification-2026-11-06.md).

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatDate, intakeLabels, readJobs, statuses, updateJob, type Intake, type Job, type JobStatus } from "@/lib/jobs";
+import { serviceForJob, serviceCategories, conversationLanguages } from "@/lib/service-context";
 import { shop } from "@/lib/shop";
 import RepairPlan from "@/components/repair-plan";
 import CustomerCallPanel from "@/components/customer-call-panel";
@@ -38,6 +39,7 @@ export default function JobDetails() {
   if (!job) return <div className="empty"><h1>Job not found.</h1><p>This record may be in another browser, or browser storage may have been cleared.</p><Link className="button" href="/">Back to job desk</Link></div>;
   const dirty = status !== job.status || notes !== job.technicianNotes;
   const intake = job.intake;
+  const service = serviceForJob(job);
   function fields(keys: (keyof Intake)[]) {
     return <dl className="parchi-fields">{keys.map(key => (
       <div key={key} className={key === "instructions" || key === "issue" ? "full-row" : undefined}>
@@ -51,7 +53,7 @@ export default function JobDetails() {
       <Link className="back" href="/">← Job desk</Link>
       <div className="heading-row bench-title">
         <div><div className="eyebrow">Technician handover · {job.reference}</div>
-          <h1>{intake.device}</h1><p>{intake.customerName} · Received {formatDate(job.createdAt)}</p></div>
+          <h1>{intake.device}</h1><p>{service.shopName} · {serviceCategories[service.category].label} · {conversationLanguages[service.language].label}</p><p>{intake.customerName} · Received {formatDate(job.createdAt)}</p></div>
         <button className="button secondary" onClick={() => window.print()}>Print customer receipt</button>
       </div>
       <div className="workspace bench">
@@ -63,7 +65,7 @@ export default function JobDetails() {
           <section className="panel parchi-section"><h2>Confirmed at intake</h2>
             {fields(["issue", "condition", "accessories", "contact", "promisedDate"])}
           </section>
-          <RepairPlan key={job.id} intake={intake} />
+          <RepairPlan key={job.id} service={service} intake={intake} />
           <CustomerCallPanel key={"calls-" + job.id} job={job} />
         </div>
         <section className="panel parchi-section bench-editor">
@@ -84,9 +86,9 @@ export default function JobDetails() {
       </div>
     </div>
     <article className="print-only customer-slip">
-      <header><div>{shop.name} · {shop.address}</div><h1>Repair intake receipt</h1>
+      <header><div>{service.shopName} · {serviceCategories[service.category].label}</div><h1>Repair / maintenance intake receipt</h1>
         <strong>{job.reference}</strong> · Received {formatDate(job.createdAt)}</header>
-      <section><h2>Device received</h2>{fields(["customerName", "contact", "device", "promisedDate", "issue", "condition", "accessories"])}</section>
+      <section><h2>Item / asset and work details</h2>{fields(["customerName", "contact", "device", "promisedDate", "issue", "condition", "accessories"])}</section>
       <section><h2>Customer instructions and terms</h2>{fields(["instructions", "spendingLimit", "approval"])}
         <p>The shop will seek separate approval for paid repairs.</p></section>
       <footer>Keep this reference for collection. · KaamParchi<br />{shop.receiptNote}</footer>
